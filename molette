@@ -1,0 +1,67 @@
+#!/bin/sh -eux
+# The MIT License (MIT) 
+# 
+# Copyright (c) 2022-2023 wael (apprehensions) <sewn@disroot.org>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy 
+# of this software and associated documentation files (the "Software"), to deal 
+# in the Software without restriction, including without limitation the rights 
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+# copies of the Software, and to permit persons to whom the Software is 
+# furnished to do so, subject to the following conditions: 
+# 
+# The above copyright notice and this permission notice shall be included in all 
+# copies or substantial portions of the Software. 
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+# SOFTWARE.
+
+# Shellcheck reccomends us to prevent globbing and word splitting, but since
+# we want globs, we have to disable it. Aditionally, disabling word splitting
+# is an edge case for when the string would contain a string. POSIX does not
+# permit spaces in usernames, so we should be good.
+# shellcheck disable=SC2086 
+
+export WINEPREFIX="$HOME/.local/share/molettepfx"
+
+# Removes all wine's logging facilities.
+export WINEDEBUG=-all
+
+# mkdir(1p): -p:
+#   Create any missing intermediate pathname components.
+#   Each dir operand that names an existing directory shall be
+#   ignored without error.
+mkdir -p "$WINEPREFIX"
+
+# Kill the wineprefix on Ctrl-c, and any other signals.
+trap 'wineserver -k' HUP INT QUIT PIPE TERM
+
+# Set the path of the Roblox player, but since this is quoted, the glob won't
+# be set immediately, hence why we need to use it un-quoted to activate the glob.
+# NOTE: This only works on specific version of Wine.
+roblox_exe="$WINEPREFIX/drive_c/users/$USER/AppData/Local/Roblox/Versions/version-*/RobloxPlayerLauncher.exe"
+
+# If the executable has not been found, or isn't a file; download
+# it to a file in the tmpfs. launch wine with it and remove it afterwards.
+[ -f $roblox_exe ] || {
+	curl -fL https://www.roblox.com/download/client -o /tmp/roblox.exe
+	wine /tmp/roblox.exe
+	rm /tmp/roblox.exe
+}
+
+# Since (presumably) the roblox executable has been installed into the
+# wineprefix, we simply re-use the glob, which would re-search for the
+# executable. Aditionally exit if it still hasnt found (${:?} substitution).
+#
+# If any arguments have NOT been pased (:- substitution), we pass -app 
+# to the Roblox Player.
+wine ${roblox_exe:?} "${@:--app}"
+
+# Wait for the wineprefix (-w) to tell us applications have exited, then
+# kill the wineprefix (-k).
+wineserver -wk
