@@ -58,8 +58,8 @@ roblox_exe="$WINEPREFIX/drive_c/users/$USER/AppData/Local/Roblox/Versions/versio
 # wineprefix, we simply re-use the glob, which would re-search for the
 # executable. Aditionally exit if it still hasnt found (${:?} substitution).
 #
-# If any arguments have NOT been pased (:- substitution), we pass -app 
-# to the Roblox Player.
+# If any arguments ($@) have NOT been passed (:- substitution) to molette, 
+# we pass -app to the Roblox Player, to activate the Roblox app.
 wine ${roblox_exe:?} "${@:--app}"
 
 # Wait for the wineprefix (-w) to tell us applications have exited, then
